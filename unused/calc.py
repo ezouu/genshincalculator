@@ -805,31 +805,26 @@ def to_csv_format(character, total_stats, artifacts_upgraded, artifacts_upgraded
     return output
 
 
-def multi_week_results_to_csv(character, results_by_week):
-    output = ""
-    delimiter = ","
+def multi_week_results_to_csv(character, results_by_week, filename="results.csv"):
+    with open(filename, 'w') as file:
+        # Write header line for CSV file
+        file.write("Obtained Artifacts,Upgraded Artifacts,Upgraded to Four but Skipped,HP %,DEF %,ATK %,Total ATK,EM,ER,Crit Rate %,Crit DMG %,Elemental DMG,Base Damage\n")
 
-    for result in results_by_week:
-        output += str(result["obtainedArtifacts"])
-        output += delimiter + str(result["upgradedArtifacts"])
-        output += delimiter + str(result["upgradedToFourButSkipped"])
-
-        total_stats = result["averageTotalStats"]
-        output += delimiter + str(custom_round(total_stats[STAT_HP_PCT], 1))
-        output += delimiter + str(custom_round(total_stats[STAT_DEF_PCT], 1))
-        output += delimiter + str(custom_round(total_stats[STAT_ATK_PCT], 1))
-        output += delimiter + str(custom_round(total_stats[STAT_TOTAL_ATK], 0))
-        output += delimiter + str(custom_round(total_stats[STAT_EM], 0))
-        output += delimiter + str(custom_round(total_stats[STAT_ER], 1))
-        output += delimiter + str(custom_round(total_stats[STAT_CR], 1))
-        output += delimiter + str(custom_round(total_stats[STAT_CD], 1))
-        output += delimiter + str(custom_round(total_stats[STAT_ELEMENTAL_DMG], 1))
-        output += delimiter + str(custom_round(total_stats[STAT_BASE_DAMAGE], 0))
-
-        output += "\n"
-
-    return output
-
+        for result in results_by_week:
+            line = f"{result['obtainedArtifacts']},{result['upgradedArtifacts']},{result['upgradedToFourButSkipped']}"
+            total_stats = result['averageTotalStats']
+            line += f",{round(total_stats[STAT_HP_PCT], 1)}"
+            line += f",{round(total_stats[STAT_DEF_PCT], 1)}"
+            line += f",{round(total_stats[STAT_ATK_PCT], 1)}"
+            line += f",{round(total_stats[STAT_TOTAL_ATK], 0)}"
+            line += f",{round(total_stats[STAT_EM], 0)}"
+            line += f",{round(total_stats[STAT_ER], 1)}"
+            line += f",{round(total_stats[STAT_CR], 1)}"
+            line += f",{round(total_stats[STAT_CD], 1)}"
+            line += f",{round(total_stats[STAT_ELEMENTAL_DMG], 1)}"
+            line += f",{round(total_stats[STAT_BASE_DAMAGE], 0)}"
+            line += "\n"
+            file.write(line)
 
 def custom_round(value, decimal_places):
     multiplier = 10 ** decimal_places
