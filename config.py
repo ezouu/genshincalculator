@@ -46,7 +46,9 @@ STAT_HB = "Healing Bonus %"
 
 STAT_AMPLIFYING_RXN_MULTIPLIER = "Amplifying Reaction Multiplier"
 STAT_TRANSFORMATIVE_RXN_MULTIPLIER = "Transformative Reaction Multiplier"
-STAT_BASE_DAMAGE = "Base Damage Output"
+STAT_AVERAGE_DAMAGE = "Base No Crit Output"
+STAT_CRITICAL_DAMAGE = "Base Crit Output"
+STAT_NORMAL_DAMAGE = "Base Damage Output"
 
 FLOWER_MAIN_STATS = {STAT_FLAT_HP: 4780}
 
@@ -142,6 +144,14 @@ THE_CATCH_STATS = {
 THE_CATCH = {
     "baseAtk": 449,
     "stats": THE_CATCH_STATS
+}
+
+ENGULFING_LIGHTNING_STATS = {
+    STAT_ER : 55.1
+}
+ENGULFING_LIGHTNING = {
+    "baseAtk": 608,
+    "stats": ENGULFING_LIGHTNING_STATS
 }
 
 IRON_STING_STATS = {
@@ -271,7 +281,7 @@ RAIDEN = {
     "baseHp": 12907,
     "baseAtk": 337,
     "baseDef": 789,
-    "weapon": THE_CATCH,
+    "weapon": ENGULFING_LIGHTNING,
     "artifactSet": EMBLEM_SET,
     "stats": RAIDEN_STATS,
     "dynamicStats": [{
@@ -283,26 +293,30 @@ RAIDEN = {
 }
 
 # Configurable input parameters
+
+#PRIORITIZE_STAT = "Critical Damage"
+PRIORITIZE_STAT = "Average Damage"  # Options: "Critical Damage", "Average Damage"
 ITERATIONS = 1
-MAX_NUM_WEEKS = 125
+MAX_NUM_WEEKS = 50
 STARTING_WEEK = 1
 CHARACTER_UNDER_TEST = RAIDEN
 USE_STRONGBOX = True
-BENNETT_ATK_BUFF = 0
+BENNETT_ATK_BUFF = 620
+SARA_ATK_BUFF = 0
 
 SET1 = "Emblem of Severed Fate"
 SET2 = "Shimenawa's Reminiscence"
 DESIRED_SET = SET1
 
 DESIRED_MAIN_STATS = {
-    TYPE_SANDS: [STAT_ATK_PCT],
+    TYPE_SANDS: [STAT_ER],
     TYPE_GOBLET: [STAT_ELEMENTAL_DMG],
     TYPE_CIRCLET: [STAT_CR, STAT_CD]
 }
 
 DESIRED_SUBSTATS = [
-    STAT_ATK_PCT,
+    #STAT_ATK_PCT,
     STAT_CR,
     STAT_CD,
-    STAT_ER
+    #STAT_ER
 ]

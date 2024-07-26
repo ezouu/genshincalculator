@@ -1,5 +1,3 @@
-# artifact_simulation_utils.py
-
 from config import (
     RESIN_PER_WEEK,
     RESIN_PER_RUN,
@@ -32,7 +30,9 @@ from config import (
     STAT_HB,
     STAT_AMPLIFYING_RXN_MULTIPLIER,
     STAT_TRANSFORMATIVE_RXN_MULTIPLIER,
-    STAT_BASE_DAMAGE,
+    STAT_AVERAGE_DAMAGE,
+    STAT_CRITICAL_DAMAGE,
+    STAT_NORMAL_DAMAGE,
     FLOWER_MAIN_STATS,
     PLUME_MAIN_STATS,
     SANDS_MAIN_STATS,
@@ -93,13 +93,14 @@ from utils import (
 
 def simulate_multi_week_artifact_progression(
     character, resin_per_week, resin_per_run, artifacts_per_run, 
-    stat_base_damage, iterations, starting_week, max_num_weeks, bennett_atk_buff
+    stat_average_damage, iterations, starting_week, max_num_weeks, bennett_atk_buff, prioritize_stat
 ):
     results_by_week = []
-    
+    best_artifacts = {}
+
     for current_week in range(starting_week, max_num_weeks + 1):
         num_artifacts_to_farm = int(current_week * resin_per_week / resin_per_run * artifacts_per_run)
-        result = simulate_artifact_progression(character, num_artifacts_to_farm)
+        result, best_artifacts = simulate_artifact_progression(character, num_artifacts_to_farm, best_artifacts, prioritize_stat)
         results_by_week.append(result)
     
     if starting_week == max_num_weeks:
@@ -107,15 +108,15 @@ def simulate_multi_week_artifact_progression(
     
     print(multi_week_results_to_csv(character, results_by_week))
 
-def simulate_artifact_progression(character, num_artifacts_per_iteration):
+def simulate_artifact_progression(character, num_artifacts_per_iteration, best_artifacts, prioritize_stat):
     total_artifacts_obtained = 0
     total_artifacts_upgraded = 0
     total_upgraded_to_four_but_skipped = 0
     average_total_stats = None
-    
+
     for _ in range(ITERATIONS):
-        equipped_artifacts = {}
-        best_total_stats = None
+        equipped_artifacts = best_artifacts.copy()
+        best_total_stats = get_total_stats(character, list(equipped_artifacts.values()))
 
         artifacts_to_roll = num_artifacts_per_iteration
         debug_log(f"Number of Artifacts to simulate: {artifacts_to_roll}", ITERATIONS, MAX_NUM_WEEKS, STARTING_WEEK)
@@ -167,7 +168,15 @@ def simulate_artifact_progression(character, num_artifacts_per_iteration):
                 equipped_artifacts[artifact_type] = artifact
                 total_stats2 = get_total_stats(character, list(equipped_artifacts.values()))
 
-                if total_stats2[STAT_BASE_DAMAGE] > total_stats1[STAT_BASE_DAMAGE]:
+                # Use prioritize_stat to determine which stat to prioritize
+                if prioritize_stat == "Critical Damage":
+                    stat_to_compare = STAT_CRITICAL_DAMAGE
+                elif prioritize_stat == "Average Damage":
+                    stat_to_compare = STAT_AVERAGE_DAMAGE
+                else:
+                    raise ValueError("Invalid prioritize_stat value. Use 'Critical Damage' or 'Average Damage'.")
+
+                if total_stats2[stat_to_compare] > total_stats1[stat_to_compare]:
                     best_total_stats = total_stats2
                     debug_log(f"Replaced {artifact_type} with better Artifact:", ITERATIONS, MAX_NUM_WEEKS, STARTING_WEEK)
                     debug_log(format_artifact(artifact), ITERATIONS, MAX_NUM_WEEKS, STARTING_WEEK)
@@ -217,7 +226,8 @@ def simulate_artifact_progression(character, num_artifacts_per_iteration):
         print(f"Upgraded to +20: {total_artifacts_upgraded}")
         print("\n\n")
 
-    return result
+    return result, equipped_artifacts
+
 
 def is_worth_upgrading(artifact):
     artifact_type = artifact["type"]
@@ -285,11 +295,13 @@ def get_total_stats(character, artifacts):
     total_stats[STAT_TOTAL_ATK] = total_atk
     total_stats[STAT_TOTAL_HP] = total_hp
     total_stats[STAT_TOTAL_DEF] = total_def
-    total_stats[STAT_BASE_DAMAGE] = get_base_damage(character, total_stats)
+    total_stats[STAT_AVERAGE_DAMAGE] = get_average_damage(character, total_stats)
+    total_stats[STAT_CRITICAL_DAMAGE] = get_critical_damage(character, total_stats)
+    total_stats[STAT_NORMAL_DAMAGE] = get_normal_damage(character, total_stats)
 
     return total_stats
 
-def get_base_damage(character, total_stats):
+def get_average_damage(character, total_stats):
     if character.get("usesTransformativeReactions"):
         base_reaction_damage = 4340.56
         return base_reaction_damage * total_stats[STAT_TRANSFORMATIVE_RXN_MULTIPLIER]
@@ -305,6 +317,25 @@ def get_base_damage(character, total_stats):
         base_reaction_multiplier = 1.5  # Assuming reverse Melt/Vaporize
         amplifying_reaction_multiplier = base_reaction_multiplier * total_stats[STAT_AMPLIFYING_RXN_MULTIPLIER]
     return total_atk * dmg_pct_multiplier * crit_multiplier * amplifying_reaction_multiplier
+
+def get_critical_damage(character, total_stats):
+    total_atk = total_stats[STAT_TOTAL_ATK]
+    dmg_pct_multiplier = 1 + total_stats[STAT_ELEMENTAL_DMG] / 100
+    crit_multiplier = 1+ total_stats[STAT_CD] / 100
+    amplifying_reaction_multiplier = 1
+    if character.get("usesAmplifyingReactions"):
+        base_reaction_multiplier = 1.5  # Assuming reverse Melt/Vaporize
+        amplifying_reaction_multiplier = base_reaction_multiplier * total_stats[STAT_AMPLIFYING_RXN_MULTIPLIER]
+    return total_atk * dmg_pct_multiplier * crit_multiplier * amplifying_reaction_multiplier
+
+def get_normal_damage(character, total_stats):
+    total_atk = total_stats[STAT_TOTAL_ATK]
+    dmg_pct_multiplier = 1 + total_stats[STAT_ELEMENTAL_DMG] / 100
+    amplifying_reaction_multiplier = 1
+    if character.get("usesAmplifyingReactions"):
+        base_reaction_multiplier = 1.5  # Assuming reverse Melt/Vaporize
+        amplifying_reaction_multiplier = base_reaction_multiplier * total_stats[STAT_AMPLIFYING_RXN_MULTIPLIER]
+    return total_atk * dmg_pct_multiplier * amplifying_reaction_multiplier
 
 def aggregate_stats(stats, total_stats):
     for stat_name, value in stats.items():
@@ -367,7 +398,9 @@ def format_stats(character, total_stats):
     output += "\n"
     output += f"\nTotal DMG %: {custom_round(total_stats[STAT_ELEMENTAL_DMG], 1)}"
     output += "\n"
-    output += f"\nExpected Base Damage: {custom_round(total_stats[STAT_BASE_DAMAGE], 0)}"
+    output += f"\nExpected Average Damage: {custom_round(total_stats[STAT_AVERAGE_DAMAGE], 0)}"
+    output += f"\nCritical Damage: {custom_round(total_stats[STAT_CRITICAL_DAMAGE], 0)}"
+    output += f"\nNormal Damage: {custom_round(total_stats[STAT_NORMAL_DAMAGE], 0)}"
 
     return output
 
@@ -413,7 +446,9 @@ def to_csv_format(character, total_stats, artifacts_upgraded, artifacts_upgraded
     output += f"\n{custom_round(total_stats[STAT_CR], 1)}"
     output += f"\n{custom_round(total_stats[STAT_CD], 1)}"
     output += f"\n{custom_round(total_stats[STAT_ELEMENTAL_DMG], 1)}"
-    output += f"\n{custom_round(total_stats[STAT_BASE_DAMAGE], 0)}"
+    output += f"\n{custom_round(total_stats[STAT_AVERAGE_DAMAGE], 0)}"
+    output += f"\n{custom_round(total_stats[STAT_CRITICAL_DAMAGE], 0)}"
+    output += f"\n{custom_round(total_stats[STAT_NORMAL_DAMAGE], 0)}"
     output += "\n"
 
     return output
@@ -421,7 +456,7 @@ def to_csv_format(character, total_stats, artifacts_upgraded, artifacts_upgraded
 def multi_week_results_to_csv(character, results_by_week, filename="results.csv"):
     with open(filename, 'w') as file:
         # Write header line for CSV file
-        file.write("Week,Obtained Artifacts,Upgraded Artifacts,Upgraded to Four but Skipped,HP %,DEF %,ATK %,Total ATK,EM,ER,Crit Rate %,Crit DMG %,Elemental DMG,Base Damage\n")
+        file.write("Week,Obtained Artifacts,Upgraded Artifacts,Upgraded to Four but Skipped,HP %,DEF %,ATK %,Total ATK,EM,ER,Crit Rate %,Crit DMG %,Elemental DMG,Average Damage,Critical Damage,Normal Damage\n")
 
         for week, result in enumerate(results_by_week, start=1):
             line = f"{week},{result['obtainedArtifacts']},{result['upgradedArtifacts']},{result['upgradedToFourButSkipped']}"
@@ -435,7 +470,8 @@ def multi_week_results_to_csv(character, results_by_week, filename="results.csv"
             line += f",{round(total_stats[STAT_CR], 1)}"
             line += f",{round(total_stats[STAT_CD], 1)}"
             line += f",{round(total_stats[STAT_ELEMENTAL_DMG], 1)}"
-            line += f",{round(total_stats[STAT_BASE_DAMAGE], 0)}"
+            line += f",{round(total_stats[STAT_AVERAGE_DAMAGE], 0)}"
+            line += f",{round(total_stats[STAT_CRITICAL_DAMAGE], 0)}"
+            line += f",{round(total_stats[STAT_NORMAL_DAMAGE], 0)}"
             line += "\n"
             file.write(line)
-
